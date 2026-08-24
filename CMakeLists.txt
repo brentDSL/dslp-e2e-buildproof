@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.16)
+project(dslp_buildproof C)
+add_executable(buildproof main.c)
+enable_testing()
+add_test(NAME smoke COMMAND buildproof)
