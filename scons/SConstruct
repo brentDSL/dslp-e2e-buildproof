@@ -1,0 +1,43 @@
+# The SCons project the dsl_platform J24 customer journey builds.
+#
+# Two things here are load-bearing for the proof rather than for SCons:
+#
+# * EnsureSConsVersion states a FLOOR, which is what the platform's project
+#   discovery reads as this project's toolchain version (version_kind
+#   "minimum"). Keep it at or below the version the journey asks for.
+# * `target` is the SCons variable this project uses for its build flavour, and
+#   it reaches the build ONLY through the build option's `scons_args`. The
+#   program prints the value back, so a flavour that never arrived is visible
+#   in the artifact rather than invisible in a green build.
+
+EnsureSConsVersion(4, 0)
+
+env = Environment()
+
+flavour = ARGUMENTS.get("target", "debug")
+if flavour not in ("debug", "release"):
+    # A plain exception, not SCons.Errors.UserError: `SCons` is not bound in an
+    # SConstruct's namespace, so naming it here would raise NameError and
+    # report the wrong problem for any bad value.
+    raise ValueError("unsupported target=%r (expected debug or release)" % flavour)
+
+# The flavour reaches the C program through a GENERATED HEADER rather than a
+# -D command-line definition. A string-valued -D has to survive the platform's
+# quoting, the compiler driver's and (on Windows) cl's, and the three disagree;
+# a header is the same bytes on every host. It is also what makes the built
+# program a function of the flavour at all, which is the point of the fixture.
+def write_flavour_header(target, source, env):
+    with open(str(target[0]), "w") as handle:
+        handle.write('#define DSLP_FLAVOUR "%s"\n' % flavour)
+
+header = env.Command("dslp_flavour.h", [], write_flavour_header)
+env.AlwaysBuild(header)
+
+if flavour == "release":
+    env.Append(CCFLAGS=["/O2"] if env["CC"] == "cl" else ["-O2"])
+else:
+    env.Append(CCFLAGS=["/Od"] if env["CC"] == "cl" else ["-g"])
+
+env.Append(CPPPATH=[Dir(".")])
+program = env.Program(target="bin/dslp_sconsproof", source="main.c")
+env.Depends(program, header)

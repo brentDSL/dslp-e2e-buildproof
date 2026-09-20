@@ -1,0 +1,6 @@
+.sconsign.dblite
+.sconf_temp/
+dslp_flavour.h
+*.o
+*.obj
+bin/
